@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'BetterEdit' target in the 'BetterEdit' project
+//
+
+#ifdef __OBJC__
+	#import <Cocoa/Cocoa.h>
+#endif
