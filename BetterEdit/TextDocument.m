@@ -40,6 +40,12 @@
 		[_textView setUsesFontPanel:NO];
 		[_textView setTextContainerInset:(NSSize){4.0, 4.0}];
 		[_textView setDelegate:self];
+		[_textView setAutomaticDashSubstitutionEnabled:NO];
+		[_textView setAutomaticLinkDetectionEnabled:NO];
+		[_textView setAutomaticDataDetectionEnabled:NO];
+		[_textView setAutomaticTextReplacementEnabled:NO];
+		[_textView setAutomaticQuoteSubstitutionEnabled:NO];
+		[_textView setAutomaticSpellingCorrectionEnabled:NO];
 		[[_textView textStorage] setDelegate:self];
 
 		_scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0.0, 0.0, 10.0, 10.0)];
