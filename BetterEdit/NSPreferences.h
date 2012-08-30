@@ -24,8 +24,7 @@ extern void _nsBeginNSPSupport();
 - (BOOL)preferencesWindowShouldClose;
 @end
 
-@interface NSPreferencesModule : NSObject <NSPreferencesModule>
-{
+@interface NSPreferencesModule : NSObject <NSPreferencesModule> {
 	IBOutlet NSBox *_preferencesView;
     struct CGSize _minSize;
     BOOL _hasChanges;

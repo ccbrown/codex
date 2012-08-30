@@ -55,7 +55,7 @@
 			NSAlert* alert = [NSAlert new];
 			[alert setMessageText:@"Restart required"];
 			[alert setInformativeText:@"Your changes to auto-saving and versions won't take effect until you restart the application."];
-			[alert beginSheetModalForWindow:[_preferencesView window] modalDelegate:nil didEndSelector:nil contextInfo:NULL];
+			[alert beginSheetModalForWindow:[sender window] modalDelegate:nil didEndSelector:nil contextInfo:NULL];
 			[alert release];
 			
 			_hasShownAutoSavingAlert = YES;

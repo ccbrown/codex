@@ -59,7 +59,7 @@
 	} else if (sender == _fontButton) {
 		[[NSFontPanel sharedFontPanel] setPanelFont:[Preferences sharedPreferences].theme.font isMultiple:NO];
 		[[NSFontPanel sharedFontPanel] makeKeyAndOrderFront:nil];
-		[[_preferencesView window] makeFirstResponder:_fontTextField];
+		[[sender window] makeFirstResponder:_fontTextField];
 	}
 }
 
