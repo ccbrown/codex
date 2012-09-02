@@ -14,6 +14,8 @@
 #import "BetterEditAppDelegate.h"
 #import "SyntaxDefinition.h"
 
+#include <dlfcn.h>
+
 @implementation Preferences
 
 @synthesize theme = _theme, themes = _themes, tabKeyInsertsSpaces = _tabKeyInsertsSpaces, tabSize = _tabSize, 
@@ -24,7 +26,15 @@ showStatusBar = _showStatusBar, autoSavesInPlace = _autoSavesInPlace, maxRecentD
 syntaxDefinitions = _syntaxDefinitions;
 
 - (id)init {
-    _nsBeginNSPSupport(); // must come before [super init]
+	// a call to _nsBeginNSPSupport() must come before [super init]
+	
+	void* image = dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", RTLD_LAZY | RTLD_LOCAL);
+	void (*beginNSPSupport)() = dlsym(image, "__nsBeginNSPSupport");
+	dlclose(image);
+	
+	if (beginNSPSupport) {
+		beginNSPSupport(); 
+	}
 	
     if (self = [super init]) {
 		_tabString = nil;

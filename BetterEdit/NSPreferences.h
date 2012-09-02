@@ -8,8 +8,6 @@
 
 #import <Foundation/Foundation.h>
 
-extern void _nsBeginNSPSupport();
-
 @protocol NSPreferencesModule
 - (id)viewForPreferenceNamed:(id)arg1;
 - (id)imageForPreferenceNamed:(id)arg1;
