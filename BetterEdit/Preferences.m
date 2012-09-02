@@ -29,7 +29,7 @@ syntaxDefinitions = _syntaxDefinitions;
 	// a call to _nsBeginNSPSupport() must come before [super init]
 	
 	void* image = dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", RTLD_LAZY | RTLD_LOCAL);
-	void (*beginNSPSupport)() = dlsym(image, "__nsBeginNSPSupport");
+	void (*beginNSPSupport)() = dlsym(image, "_nsBeginNSPSupport");
 	dlclose(image);
 	
 	if (beginNSPSupport) {
