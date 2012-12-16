@@ -7,6 +7,10 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeOSTypes</key>
+			<array>
+				<string>****</string>
+			</array>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>*</string>
@@ -15,6 +19,8 @@
 			<string>All Documents</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>NSDocumentClass</key>
+			<string>TextDocument</string>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
