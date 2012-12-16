@@ -53,94 +53,92 @@
 	return [super document:document textView:textView doCommandBySelector:selector];
 }
 
-- (void)formatTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
-	if (![self prepareToProcessText:textStorage]) {
-		return;
-	}
-	
-	if (range.length < 1) {
-		return;
-	}
-	
+- (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position {
 	Theme* theme = [Preferences sharedPreferences].theme;
 	
-	[textStorage removeAttribute:NSForegroundColorAttributeName range:range];
-	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:range];
-
 	NSString* string = [textStorage string];
+	
+	NSUInteger length = [string length] - position;
+	
 	NSUInteger i;
 	
 	BOOL inBrackets = NO;
-	BOOL postSemiColon = NO;
+	BOOL postColon = NO;
 	
-	while (range.length > 0 && range.length < 0x80000000) {
-		unichar c1 = [string characterAtIndex:range.location];
-		unichar c2 = (range.length > 1 ? [string characterAtIndex:range.location + 1] : 'x');
+	while (length > 0 && length < 0x80000000) {
+		if (!inBrackets && !postColon && ![self addResumePoint:position]) {
+			return;
+		}
+
+		unichar c1 = [string characterAtIndex:position];
+		unichar c2 = (length > 1 ? [string characterAtIndex:position + 1] : 'x');
 		
 		if (c1 == '/' && c2 == '*') {
 			// multi line comment
 			
-			for (i = 2; i < range.length; ++i) {
-				if ([string characterAtIndex:range.location + i - 1] == '*' && [string characterAtIndex:range.location + i] == '/') {
+			for (i = 2; i < length; ++i) {
+				if ([string characterAtIndex:position + i - 1] == '*' && [string characterAtIndex:position + i] == '/') {
 					break;
 				}
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.commentColor range:NSMakeRange(range.location, MIN(i + 1, range.length))];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.commentColor atRange:NSMakeRange(position, MIN(i + 1, length)) textStorage:textStorage];
+
+			position += i;
+			length -= i;
 		} else if (c1 == '"' || c1 == '\'') {
 			// quote
 			
-			NSUInteger quoteLength = [self quoteLength:string range:range];
+			NSUInteger quoteLength = [self quoteLength:string range:NSMakeRange(position, length)];
 			
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.quoteColor range:NSMakeRange(range.location, quoteLength)];
+			[self colorText:theme.quoteColor atRange:NSMakeRange(position, quoteLength) textStorage:textStorage];
 			
-			range.location += quoteLength;
-			range.length -= quoteLength;
+			position += quoteLength;
+			length -= quoteLength;
 		} else if (inBrackets && ((c1 >= '0' && c1 <= '9') || (c1 == '.' && (c2 >= '0' && c2 <= '9')) || c1 == '#')) {
 			// number
 			
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '.')) {
 					break;
 				}
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.constantColor range:NSMakeRange(range.location, i)];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.constantColor atRange:NSMakeRange(position, i) textStorage:textStorage];
+
+			position += i;
+			length -= i;
 		} else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_' || c1 == '-') {
 			// identifier
 			
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-')) {
 					break;
 				}
 			}
 			
 			if (inBrackets) {
-				if (i < range.length && [string characterAtIndex:range.location + i] == '(') {
+				if (i < length && [string characterAtIndex:position + i] == '(') {
 					// function
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.functionColor range:NSMakeRange(range.location, i)];
+					[self colorText:theme.functionColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 				} else {
 					// other
-					[textStorage addAttribute:NSForegroundColorAttributeName value:(postSemiColon ? theme.defaultColor : [theme.defaultColor colorWithAlphaComponent:0.7]) range:NSMakeRange(range.location, i)];
+					[self colorText:(postColon ? theme.defaultColor : [theme.defaultColor colorWithAlphaComponent:0.7]) atRange:NSMakeRange(position, i) textStorage:textStorage];
 				}
 			} else {
-				if (range.location > 0 && ([string characterAtIndex:range.location - 1] == '#' || [string characterAtIndex:range.location - 1] == '.')) {
+				if (position > 0 && ([string characterAtIndex:position - 1] == '#' || [string characterAtIndex:position - 1] == '.')) {
 					// class / id
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.identifierColor range:NSMakeRange(range.location, i)];
+					[self colorText:theme.identifierColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 				} else {
 					// tag / pseudo class
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.keywordColor range:NSMakeRange(range.location, i)];
+					[self colorText:theme.keywordColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 				}
 			}
 
-			range.location += i;
-			range.length -= i;
+			position += i;
+			length -= i;
 		} else {
 			if (c1 == '{') {
 				inBrackets = YES;
@@ -148,12 +146,12 @@
 				inBrackets = NO;
 			}
 			if (c1 == ':') {
-				postSemiColon = YES;
+				postColon = YES;
 			} else if (c1 == '\n' || c1 == '\r' || c1 == ';') {
-				postSemiColon = NO;
+				postColon = NO;
 			}
-			++range.location;
-			--range.length;
+			++position;
+			--length;
 		}
 		
 	}

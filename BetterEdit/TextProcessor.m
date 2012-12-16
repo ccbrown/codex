@@ -13,14 +13,13 @@
 
 @implementation TextProcessor
 
-@synthesize keywords = _keywords, singleLineCommentPrefix = _singleLineCommentPrefix;
+@synthesize keywords = _keywords, singleLineCommentPrefix = _singleLineCommentPrefix, resumePoints = _resumePoints;
 
 - (id)init {
-	if (self = [super init]) {
-		[self invalidateHash];
-		
+	if (self = [super init]) {		
 		self.keywords = nil;
 		self.singleLineCommentPrefix = @"//";
+		self.resumePoints = [NSMutableArray arrayWithCapacity:10];
 	}
 	
 	return self;
@@ -165,43 +164,33 @@
 	return YES;
 }
 
-- (void)formatTextStorage:(NSTextStorage*)textStorage {
-	[self formatTextStorage:textStorage range:NSMakeRange(0, [textStorage length])];
-}
-
-- (void)formatTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
-	if (![self prepareToProcessText:textStorage]) {
-		return;
-	}
-	
-	if (range.length < 1) {
-		return;
-	}
-	
+- (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position {
 	Theme* theme = [Preferences sharedPreferences].theme;
-	
-	[textStorage removeAttribute:NSForegroundColorAttributeName range:range];
-	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:range];
-	
+
 	NSString* string = [textStorage string];
-	
-	while (range.length > 0 && range.length < 0x80000000) {
-		unichar c1 = [string characterAtIndex:range.location];
+
+	NSUInteger length = [string length] - position;
+
+	while (length > 0 && length < 0x80000000) {
+		unichar c1 = [string characterAtIndex:position];
+
+		if (![self addResumePoint:position]) {
+			return;
+		}
 		
 		if (c1 == '"') {
 			// quote
+
+			NSUInteger quoteLength = [self quoteLength:string range:NSMakeRange(position, length)];
 			
-			NSUInteger quoteLength = [self quoteLength:string range:range];
+			[self colorText:(c1 == '"' ? theme.quoteColor : theme.constantColor) atRange:NSMakeRange(position, quoteLength) textStorage:textStorage];
 			
-			[textStorage addAttribute:NSForegroundColorAttributeName value:(c1 == '"' ? theme.quoteColor : theme.constantColor) range:NSMakeRange(range.location, quoteLength)];
-			
-			range.location += quoteLength;
-			range.length -= quoteLength;
+			position += quoteLength;
+			length -= quoteLength;
 		} else {
-			++range.location;
-			--range.length;
+			++position;
+			--length;
 		}
-		
 	}
 }
 
@@ -453,21 +442,106 @@
 	}
 }
 
-- (void)invalidateHash {
-	_hash = 0;
-}
-
-- (BOOL)prepareToProcessText:(NSTextStorage*)text {
-	if ([text hash] != _hash) {
-		_hash = [text hash];
-		return YES;
+- (void)colorText:(NSColor*)color atRange:(NSRange)range textStorage:(NSTextStorage*)textStorage {
+	if (range.location > _highlightNextHighlight) {
+		Theme* theme = [Preferences sharedPreferences].theme;
+		NSRange r = NSMakeRange(_highlightNextHighlight, range.location - _highlightNextHighlight);
+		[textStorage removeAttribute:NSForegroundColorAttributeName range:r];
+		[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:r];
 	}
 
-	return NO;
+	[textStorage addAttribute:NSForegroundColorAttributeName value:color range:range];
+	_highlightNextHighlight = range.location + range.length + 1;
+}
+
+- (BOOL)addResumePoint:(NSUInteger)position {
+	// remove any resume points between _highlightResumeIndex and this...
+	while (_highlightResumeIndex + 1 < [_resumePoints count]) {
+		NSUInteger val = [[_resumePoints objectAtIndex:_highlightResumeIndex + 1] unsignedIntegerValue];
+		if (position > val) {
+			[_resumePoints removeObjectAtIndex:_highlightResumeIndex + 1];
+		} else if (position == val) {
+			// if we find one that matches, we're done
+			// ...unless we haven't gone through _highlightGoThrough yet
+			if (position < _highlightGoThrough) {
+				++_highlightResumeIndex;
+				return YES;
+			}
+			return NO;
+		} else {
+			break;
+		}
+	}
+	
+	if (_highlightResumeIndex < [_resumePoints count]) {
+		NSUInteger last = [[_resumePoints objectAtIndex:_highlightResumeIndex] unsignedIntegerValue];
+		if (position - last < 200) {
+			// too soon, don't add another resume point here
+			return YES;
+		}
+	}
+
+	// insert this and increment _highlightResumeIndex
+	if (_highlightResumeIndex + 1 >= [_resumePoints count]) {
+		[_resumePoints addObject:[NSNumber numberWithUnsignedInteger:position]];
+		_highlightResumeIndex = [_resumePoints count] - 1;
+	} else {
+		[_resumePoints insertObject:[NSNumber numberWithUnsignedInteger:position] atIndex:++_highlightResumeIndex];
+	}
+
+	return YES;
+}
+
+- (void)resetTextStorage:(NSTextStorage*)textStorage {
+	[_resumePoints removeAllObjects];
+
+	_lastHash = [[textStorage string] hash];
+
+	_highlightResumeIndex   = 0;
+	_highlightNextHighlight = 0;
+	_highlightGoThrough     = 0;
+	[self syntaxHighlightTextStorage:textStorage startingAt:0];
+}
+
+- (void)replacedCharactersInRange:(NSRange)range newRangeLength:(NSUInteger)newRangeLength textStorage:(NSTextStorage*)textStorage {
+	NSUInteger hash = [[textStorage string] hash];
+	if (_lastHash == hash) {
+		return;
+	}
+	_lastHash = hash;
+	
+	NSUInteger last = 0;
+	NSUInteger lastLast = 0;
+	NSUInteger i = 0;
+	for (; i < [_resumePoints count]; ++i) {
+		NSUInteger pos = [[_resumePoints objectAtIndex:i] unsignedIntegerValue];
+		if (pos >= range.location) {
+			// update the rest of the resume points, then break
+			for (NSUInteger j = i; j < [_resumePoints count];) {
+				pos = [[_resumePoints objectAtIndex:j] unsignedIntegerValue];
+				if (pos < range.location + range.length) {
+					[_resumePoints removeObjectAtIndex:j];
+				} else {
+					[_resumePoints setObject:[NSNumber numberWithUnsignedInteger:pos - range.length + newRangeLength] atIndexedSubscript:j];
+					++j;
+				}
+			}
+			break;
+		}
+		lastLast = last;
+		last = pos;
+	}
+
+	// backtrack a little and start from there
+	_highlightResumeIndex   = (i > 2 ? i - 2 : 0);
+	_highlightNextHighlight = lastLast;
+	_highlightGoThrough     = range.location + range.length;
+	[self syntaxHighlightTextStorage:textStorage startingAt:lastLast];
 }
 
 - (void)dealloc {	
 	self.keywords = nil;
+	self.resumePoints = nil;
 
 	[super dealloc];
 }

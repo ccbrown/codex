@@ -11,11 +11,17 @@
 @class TextDocument;
 
 @interface TextProcessor : NSObject {
-	NSUInteger _hash;
-
 	NSArray* _keywords;
 	
 	NSString* _singleLineCommentPrefix;
+
+	NSUInteger _lastHash;
+	
+	NSMutableArray* _resumePoints;
+	
+	NSUInteger _highlightResumeIndex;
+	NSUInteger _highlightNextHighlight;
+	NSUInteger _highlightGoThrough;
 }
 
 + (TextProcessor*)defaultProcessor;
@@ -29,19 +35,23 @@
 - (void)addPrefix:(NSString*)prefix toSelectedLinesInTextView:(NSTextView*)textView;
 - (BOOL)removePrefix:(NSString*)prefix fromSelectedLinesInTextView:(NSTextView*)textView;
 
-- (void)formatTextStorage:(NSTextStorage*)textStorage;
-- (void)formatTextStorage:(NSTextStorage*)textStorage range:(NSRange)range;
-
 - (BOOL)document:(TextDocument*)document textView:(NSTextView*)textView doCommandBySelector:(SEL)selector;
 - (BOOL)document:(TextDocument *)document textView:(NSTextView *)textView doKeyDownByEvent:(NSEvent *)event;
 - (void)document:(TextDocument*)document textView:(NSTextView*)textView didChangeSelection:(NSRange)oldSelection;
 
-- (void)invalidateHash;
+// overload this for syntax highlighting
+- (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position;
 
-- (BOOL)prepareToProcessText:(NSTextStorage*)text;
+// call these from syntaxHighlightTextStorage:
+- (void)colorText:(NSColor*)color atRange:(NSRange)range textStorage:(NSTextStorage*)textStorage;
+- (BOOL)addResumePoint:(NSUInteger)position; // stop highlighting when this returns false
+
+// call these when text changes change
+- (void)resetTextStorage:(NSTextStorage*)textStorage;
+- (void)replacedCharactersInRange:(NSRange)range newRangeLength:(NSUInteger)newRangeLength textStorage:(NSTextStorage*)textStorage;
 
 @property (nonatomic, retain) NSArray* keywords;
-
 @property (nonatomic, copy) NSString* singleLineCommentPrefix;
+@property (nonatomic, retain) NSMutableArray* resumePoints;
 
 @end

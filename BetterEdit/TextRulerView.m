@@ -21,6 +21,7 @@
 		}
 		
 		_textView = (NSTextView*)view;
+		_lineNumber = 0;
 
 		[self setRuleThickness:32.0];
 	}
@@ -31,11 +32,20 @@
 - (NSString*)lineNumberStringForRange:(NSRange)range {
 	NSString* string = [_textView string];
 
-	NSUInteger line = 1;
-	NSUInteger col = 0;
-	for (NSUInteger i = 0; i < [string length]; ++i) {
+	if (_lineNumber && range.location < _position) {
+		// if we went backwards, reset the cache
+		_lineNumber = 0;
+	}
+	
+	NSUInteger line = _lineNumber ? _lineNumber : 1;
+	NSUInteger col = _lineNumber ? _column : 0;
+	for (NSUInteger i = _lineNumber ? _position : 0; i < [string length]; ++i) {
 		unichar c = [string characterAtIndex:i];
 		if (i == range.location) {
+			// cache this position / line number / column
+			_position = i;
+			_lineNumber = line;
+			_column = col;
 			if (col == 0) {
 				return [NSString stringWithFormat:@"%u", line];
 			} else {
@@ -56,8 +66,8 @@
 - (NSString*)extraLineNumberString {
 	NSString* string = [_textView string];
 
-	NSUInteger line = 1;
-	for (NSUInteger i = 0; i < [string length]; ++i) {
+	NSUInteger line = _lineNumber ? _lineNumber : 1;
+	for (NSUInteger i = _lineNumber ? _position : 0; i < [string length]; ++i) {
 		unichar c = [string characterAtIndex:i];
 		if (c == '\n') {
 			++line;
@@ -78,6 +88,8 @@
 	
 	NSRect visibleRect = [_textView convertRect:NSMakeRect(self.frame.size.width, rect.origin.y - 10.0, _textView.frame.size.width, rect.size.height + 20.0) fromView:self];	
 	NSRange visibleRange = [lm glyphRangeForBoundingRect:visibleRect inTextContainer:tc];
+	
+	_lineNumber = 0;
 	
 	NSUInteger i = visibleRange.location;
 	while (i < visibleRange.location + visibleRange.length) {

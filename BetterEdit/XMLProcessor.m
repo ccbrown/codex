@@ -20,21 +20,13 @@
 	return [super document:document textView:textView doCommandBySelector:selector];
 }
 
-- (void)formatTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
-	if (![self prepareToProcessText:textStorage]) {
-		return;
-	}
-	
-	if (range.length < 1) {
-		return;
-	}
-	
+- (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position {
 	Theme* theme = [Preferences sharedPreferences].theme;
 	
-	[textStorage removeAttribute:NSForegroundColorAttributeName range:range];
-	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:range];
-	
 	NSString* string = [textStorage string];
+	
+	NSUInteger length = [string length] - position;
+	
 	NSUInteger i;
 
 	enum {
@@ -43,95 +35,101 @@
 	};
 	NSUInteger state = XMLStateNormal;
 	
-	while (range.length > 0 && range.length < 0x80000000) {
-		unichar c1 = [string characterAtIndex:range.location];
+	while (length > 0 && length < 0x80000000) {
+		if (state == XMLStateNormal && ![self addResumePoint:position]) {
+			return;
+		}
+
+		unichar c1 = [string characterAtIndex:position];
 		
 		if (state == XMLStateTag && ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_' || c1 == ':')) {
 			// attribute
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ':' || c == '-' || c == '.')) {
 					break;
 				}
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.identifierColor range:NSMakeRange(range.location, i)];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.identifierColor atRange:NSMakeRange(position, i) textStorage:textStorage];
+
+			position += i;
+			length -= i;
 		} else if (state == XMLStateTag && c1 == '=') {
 			// attribute value
 
-			for (i = 1; i < range.length; ++i) {
-				if (![[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:[string characterAtIndex:range.location + i]]) {
+			for (i = 1; i < length; ++i) {
+				if (![[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:[string characterAtIndex:position + i]]) {
 					break;
 				}
 			}
 
-			unichar c = [string characterAtIndex:range.location + i];
+			unichar c = [string characterAtIndex:position + i];
 			if (c == '"' || c == '\'') {
-				i += [self quoteLength:string range:NSMakeRange(range.location + i, range.length - i)];
-				[textStorage addAttribute:NSForegroundColorAttributeName value:theme.quoteColor range:NSMakeRange(range.location + 1, i - 1)];
+				i += [self quoteLength:string range:NSMakeRange(position + i, length - i)];
+				[self colorText:theme.quoteColor atRange:NSMakeRange(position + 1, i - 1) textStorage:textStorage];
 			} else {
-				for (; i < range.length; ++i) {
-					c = [string characterAtIndex:range.location + i];
+				for (; i < length; ++i) {
+					c = [string characterAtIndex:position + i];
 					if ([[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:c] || c == '>' || c == '/') {
 						break;
 					}
 				}
-				[textStorage addAttribute:NSForegroundColorAttributeName value:theme.constantColor range:NSMakeRange(range.location + 1, i - 1)];
+				[self colorText:theme.constantColor atRange:NSMakeRange(position + 1, i - 1) textStorage:textStorage];
 			}
 			
-			range.location += i;
-			range.length -= i;
+			position += i;
+			length -= i;
 		} else if (state == XMLStateTag && c1 == '>') {
 			state = XMLStateNormal;
 
-			range.location += 1;
-			range.length -= 1;
-		} else if (state == XMLStateNormal && c1 == '<' && range.length >= 4 && [[string substringWithRange:NSMakeRange(range.location, 4)] compare:@"<!--"] == NSOrderedSame) {
+			position += 1;
+			length -= 1;
+		} else if (state == XMLStateNormal && c1 == '<' && length >= 4 && [[string substringWithRange:NSMakeRange(position, 4)] compare:@"<!--"] == NSOrderedSame) {
 			// comment
 			
-			NSRange matchRange = [string rangeOfString:@"-->" options:NSLiteralSearch range:range];
+			NSRange matchRange = [string rangeOfString:@"-->" options:NSLiteralSearch range:NSMakeRange(position, length)];
 			
-			NSUInteger length;
+			NSUInteger l;
 			if (matchRange.location == NSNotFound) {
-				length = range.length;
+				l = length;
 			} else {
-				length = matchRange.location + matchRange.length - range.location;
+				l = matchRange.location + matchRange.length - position;
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.commentColor range:NSMakeRange(range.location, length)];
+			[self colorText:theme.commentColor atRange:NSMakeRange(position, l) textStorage:textStorage];
 			
-			range.location += length;
-			range.length -= length;
-		} else if (state == XMLStateNormal && c1 == '<' && range.length >= 2 && ([string characterAtIndex:range.location + 1] == '?' || [string characterAtIndex:range.location + 1] == '!')) {
+			position += l;
+			length -= l;
+		} else if (state == XMLStateNormal && c1 == '<' && length >= 2 && ([string characterAtIndex:position + 1] == '?' || [string characterAtIndex:position + 1] == '!')) {
 			// directive
 			
-			for (i = 2; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 2; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (c == '"') {
-					i += [self quoteLength:string range:NSMakeRange(range.location + i, range.length - i)];
-					if (i >= range.length) {
+					i += [self quoteLength:string range:NSMakeRange(position + i, length - i)];
+					if (i >= length) {
 						break;
 					}
-					c = [string characterAtIndex:range.location + i];
+					c = [string characterAtIndex:position + i];
 				}
 				if (c == '>') {
 					break;
 				}
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.directiveColor range:NSMakeRange(range.location, MIN(range.length, i + 1))];
-			range.location += (i + 1);
-			range.length -= (i + 1);
+			[self colorText:theme.directiveColor atRange:NSMakeRange(position, MIN(length, i + 1)) textStorage:textStorage];
+
+			position += (i + 1);
+			length -= (i + 1);
 		} else if (state == XMLStateNormal && c1 == '<') {
 			// possible tag
 			
-			NSUInteger start = range.location + 1;
+			NSUInteger start = position + 1;
 			BOOL isATag = YES;
 			
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (c == '/') {
 					++start;
 				} else if (c >= '0' && c <= '9') {
@@ -143,8 +141,8 @@
 			}
 
 			if (isATag) {
-				for (; i < range.length; ++i) {
-					unichar c = [string characterAtIndex:range.location + i];
+				for (; i < length; ++i) {
+					unichar c = [string characterAtIndex:position + i];
 					if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ':' || c == '-' || c == '.')) {
 						isATag = ([[NSCharacterSet whitespaceAndNewlineCharacterSet] characterIsMember:c] || c == '>' || c == '/');
 						break;
@@ -152,17 +150,17 @@
 				}
 
 				if (isATag) {
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.keywordColor range:NSMakeRange(start, i - (start - range.location))];
+					[self colorText:theme.keywordColor atRange:NSMakeRange(start, i - (start - position)) textStorage:textStorage];
 
-					state = (start - range.location > 0 ? XMLStateTag : state);
+					state = (start - position > 0 ? XMLStateTag : state);
 				}
 			}			
 
-			range.location += i;
-			range.length -= i;
+			position += i;
+			length -= i;
 		} else {
-			++range.location;
-			--range.length;
+			++position;
+			--length;
 		}
 		
 	}

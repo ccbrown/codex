@@ -8,8 +8,15 @@
 
 #import <Cocoa/Cocoa.h>
 
+#import "TextProcessor.h"
+
 @interface TextRulerView : NSRulerView {
 	NSTextView* _textView;
+
+	// cache
+	NSUInteger _lineNumber;
+	NSUInteger _position;
+	NSUInteger _column;
 }
 
 @end

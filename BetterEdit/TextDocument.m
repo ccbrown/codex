@@ -134,7 +134,7 @@
 	if (textProcessor != _textProcessor) {
 		[_textProcessor release];
 		_textProcessor = [textProcessor retain];
-		[_textProcessor formatTextStorage:[_textView textStorage]];
+		[_textProcessor resetTextStorage:[_textView textStorage]];
 	}
 }
 
@@ -150,9 +150,13 @@
 	[kBetterEditAppDelegate documentUpdated:self];
 }
 
-- (void)textStorageDidProcessEditing:(NSNotification *)aNotification {
-	[self.textProcessor formatTextStorage:[_textView textStorage]];
-	
+- (void)textStorageDidProcessEditing:(NSNotification *)notification {
+	NSTextStorage* textStorage = [notification object];
+	NSRange range = [textStorage editedRange];
+	NSInteger changeInLength = [textStorage changeInLength];
+
+	[_textProcessor replacedCharactersInRange:range newRangeLength:range.length + changeInLength textStorage:textStorage];
+
 	[self invalidateRestorableState];
 }
 
@@ -161,8 +165,8 @@
 	if (![newProcessor isSimilarTo:self.textProcessor]) {
 		self.textProcessor = newProcessor;
 	}
-	
-	[self.textProcessor invalidateHash];
+
+	[self.textProcessor resetTextStorage:[_textView textStorage]];
 
 	[self updateView];
 }
@@ -194,7 +198,7 @@
 
 // for the undo manager only
 - (void)_convertToEncoding:(NSNumber*)encoding {
-	[self convertToEncoding:[encoding unsignedIntValue]];
+	[self convertToEncoding:[encoding unsignedIntegerValue]];
 }
 
 - (BOOL)convertToEncoding:(NSStringEncoding)encoding {
@@ -212,7 +216,7 @@
 		return NO;
 	}
 	
-	[[self undoManager] registerUndoWithTarget:self selector:@selector(_convertToEncoding:) object:[NSNumber numberWithUnsignedInt:_encoding]];
+	[[self undoManager] registerUndoWithTarget:self selector:@selector(_convertToEncoding:) object:[NSNumber numberWithUnsignedInteger:_encoding]];
 	[[self undoManager] setActionName:@"Encoding"];
 	
 	self.encoding = encoding;
@@ -310,7 +314,6 @@
 		[_textView setEditable:NO];
 	}
 
-	[self.textProcessor formatTextStorage:[_textView textStorage]];
 	[[_textView textStorage] addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:NSMakeRange(0, [[_textView textStorage] length])];
 	
 	// if we don't fix the size here, it'll get drawn when the height is FLT_MAX which does weird things
@@ -390,7 +393,6 @@
 -(void)textDidChange:(NSNotification *)notification {
 	[self invalidateRestorableState];
 	[self updateChangeCount:NSChangeDone];
-	[self.textProcessor invalidateHash];
 	[_rulerView setNeedsDisplay:YES];
 
 	[kBetterEditAppDelegate documentUpdated:self];

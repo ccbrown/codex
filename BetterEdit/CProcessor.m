@@ -11,70 +11,66 @@
 
 @implementation CProcessor
 
-- (void)formatTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
-	if (![self prepareToProcessText:textStorage]) {
-		return;
-	}
-
-	if (range.length < 1) {
-		return;
-	}
-	
+- (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position {
 	Theme* theme = [Preferences sharedPreferences].theme;
+
+	NSString* string = [textStorage string];
 	
-	[textStorage removeAttribute:NSForegroundColorAttributeName range:range];
-	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:range];
+	NSUInteger length = [string length] - position;
 
 	// for quotes and multi-line comments that return to directives when they end
 	bool returnToDirective = false;
 
-	NSString* string = [textStorage string];
 	NSUInteger i;
 	
-	while (range.length > 0 && range.length < 0x80000000) {
-		unichar c1 = [string characterAtIndex:range.location];
-		unichar c2 = (range.length > 1 ? [string characterAtIndex:range.location + 1] : 'x');
+	while (length > 0 && length < 0x80000000) {
+		if (!returnToDirective && ![self addResumePoint:position]) {
+			return;
+		}
+		
+		unichar c1 = [string characterAtIndex:position];
+		unichar c2 = (length > 1 ? [string characterAtIndex:position + 1] : 'x');
 
 		if (c1 == '/' && c2 == '/') {
 			// single line comment
 
-			for (i = 2; i < range.length; ++i) {
-				if ([string characterAtIndex:range.location + i] == '\n' && [string characterAtIndex:range.location + i - 1] != '\\') {
+			for (i = 2; i < length; ++i) {
+				if ([string characterAtIndex:position + i] == '\n' && [string characterAtIndex:position + i - 1] != '\\') {
 					break;
 				}
 			}
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.commentColor range:NSMakeRange(range.location, i)];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.commentColor atRange:NSMakeRange(position, i) textStorage:textStorage];
+			position += i;
+			length -= i;
 		} else if (c1 == '/' && c2 == '*') {
 			// multi line comment
 
-			for (i = 2; i < range.length; ++i) {
-				if ([string characterAtIndex:range.location + i - 1] == '*' && [string characterAtIndex:range.location + i] == '/') {
+			for (i = 2; i < length; ++i) {
+				if ([string characterAtIndex:position + i - 1] == '*' && [string characterAtIndex:position + i] == '/') {
 					break;
 				}
 			}
 			
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.commentColor range:NSMakeRange(range.location, MIN(i + 1, range.length))];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.commentColor atRange:NSMakeRange(position, MIN(i + 1, length)) textStorage:textStorage];
+			position += i;
+			length -= i;
 		} else if (c1 == '"' || c1 == '\'') {
 			// quote
 
-			NSUInteger quoteLength = [self quoteLength:string range:range];
+			NSUInteger quoteLength = [self quoteLength:string range:NSMakeRange(position, length)];
 
-			[textStorage addAttribute:NSForegroundColorAttributeName value:(c1 == '"' ? theme.quoteColor : theme.constantColor) range:NSMakeRange(range.location, quoteLength)];
+			[self colorText:(c1 == '"' ? theme.quoteColor : theme.constantColor) atRange:NSMakeRange(position, quoteLength) textStorage:textStorage];
 
-			range.location += quoteLength;
-			range.length -= quoteLength;
+			position += quoteLength;
+			length -= quoteLength;
 		} else if (returnToDirective || c1 == '#') {
 			// preprocessor directive
 			
 			returnToDirective = false;
 			
-			for (i = 0; i < range.length; ++i) {
-				unichar ic1 = [string characterAtIndex:range.location + i];
+			for (i = 0; i < length; ++i) {
+				unichar ic1 = [string characterAtIndex:position + i];
 				
 				if (ic1 == '"' || ic1 == '\'') {
 					// quote
@@ -82,7 +78,7 @@
 					break;
 				}
 
-				unichar ic2 = (i + 1 < range.length ? [string characterAtIndex:range.location + i + 1] : 'x');
+				unichar ic2 = (i + 1 < length ? [string characterAtIndex:position + i + 1] : 'x');
 
 				if (ic1 == '/' && ic2 == '/') {
 					// single line comment
@@ -95,56 +91,58 @@
 					break;
 				}
 				
-				if (ic1 == '\n' && [string characterAtIndex:range.location + i - 1] != '\\') {
+				if (ic1 == '\n' && [string characterAtIndex:position + i - 1] != '\\') {
 					// end of the directive
 					break;
 				}
 			}
 			
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.directiveColor range:NSMakeRange(range.location, i)];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.directiveColor atRange:NSMakeRange(position, i) textStorage:textStorage];
+
+			position += i;
+			length -= i;
 		} else if ((c1 >= '0' && c1 <= '9') || (c1 == '.' && (c2 >= '0' && c2 <= '9'))) {
 			// number
 			
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '.')) {
 					break;
 				}
 			}
 			
-			[textStorage addAttribute:NSForegroundColorAttributeName value:theme.constantColor range:NSMakeRange(range.location, i)];
-			range.location += i;
-			range.length -= i;
+			[self colorText:theme.constantColor atRange:NSMakeRange(position, i) textStorage:textStorage];
+
+			position += i;
+			length -= i;
 		} else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
 			// identifier
 
-			for (i = 1; i < range.length; ++i) {
-				unichar c = [string characterAtIndex:range.location + i];
+			for (i = 1; i < length; ++i) {
+				unichar c = [string characterAtIndex:position + i];
 				if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
 					break;
 				}
 			}
 			
-			NSString* identifier = [string substringWithRange:NSMakeRange(range.location, i)];
+			NSString* identifier = [string substringWithRange:NSMakeRange(position, i)];
 
 			if ([self.keywords containsObject:identifier]) {
-				[textStorage addAttribute:NSForegroundColorAttributeName value:theme.keywordColor range:NSMakeRange(range.location, i)];
+				[self colorText:theme.keywordColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 			} else {
-				if (i < range.length && [string characterAtIndex:range.location + i] == '(') {
+				if (i < length && [string characterAtIndex:position + i] == '(') {
 					// function call
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.functionColor range:NSMakeRange(range.location, i)];
+					[self colorText:theme.functionColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 				} else {
 					// variable / type
-					[textStorage addAttribute:NSForegroundColorAttributeName value:theme.identifierColor range:NSMakeRange(range.location, i)];
+					[self colorText:theme.identifierColor atRange:NSMakeRange(position, i) textStorage:textStorage];
 				}
 			}
-			range.location += i;
-			range.length -= i;
+			position += i;
+			length -= i;
 		} else {
-			++range.location;
-			--range.length;
+			++position;
+			--length;
 		}
 
 	}

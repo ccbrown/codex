@@ -545,7 +545,7 @@
 	
 	if ([Preferences sharedPreferences].showDocumentShortcuts) {
 		if (row < 9) {
-			[view setRightText:[NSString stringWithFormat:@"\u2318%d", row + 1]];
+			[view setRightText:[NSString stringWithFormat:@"\u2318%d", (int)row + 1]];
 		} else if (row == 9) {
 			[view setRightText:[NSString stringWithFormat:@"\u2318%d", 0]];
 		} else {

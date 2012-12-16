@@ -17,6 +17,6 @@
 
 @end
 
-@interface EditingTextView : KeyThroughTextView <AdvancedTextFinderClient> 
+@interface EditingTextView : KeyThroughTextView <AdvancedTextFinderClient>
 
 @end
