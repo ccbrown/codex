@@ -126,7 +126,7 @@
 			
 			self.keywords = [NSArray arrayWithObjects: nil];
 			
-			self.extensions = [NSArray arrayWithObjects:@"xml", @"xsd", @"html", @"html", @"shtml", @"plist", nil];
+			self.extensions = [NSArray arrayWithObjects:@"xml", @"xsd", @"htm", @"html", @"shtml", @"plist", nil];
 		}
 	}
 
