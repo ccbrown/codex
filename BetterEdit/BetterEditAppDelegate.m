@@ -22,32 +22,12 @@ BetterEditAppDelegate* kBetterEditAppDelegate = nil;
 	[NSPreferences setDefaultPreferencesClass:[Preferences class]];
 
 	_autoSavesInPlace = [Preferences sharedPreferences].autoSavesInPlace;
-	
-	if (!_autoSavesInPlace) {
-		[_fileMenu removeItem:[_fileMenu itemWithTitle:@"Duplicate"]];
-	}
 
 	_textDocumentController = [TextDocumentController new];
 
 	_editingWindowControllers = [[NSMutableArray alloc] initWithCapacity:1];
 
 	_isQuitting = NO;
-
-	[self.encodingMenu removeAllItems];
-	[self.reloadWithEncodingMenu removeAllItems];
-
-	NSStringEncoding* encodings = (NSStringEncoding*)[NSString availableStringEncodings];
-	for (int i = 0; *encodings != 0; ++encodings, ++i) {
-		NSMenuItem* item1 = [[NSMenuItem alloc] initWithTitle:[NSString localizedNameOfStringEncoding:*encodings] action:@selector(aBESelectEncoding:) keyEquivalent:@""];
-		[item1 setTag:*encodings];
-		[self.encodingMenu addItem:item1];
-		[item1 release];
-
-		NSMenuItem* item2 = [[NSMenuItem alloc] initWithTitle:[NSString localizedNameOfStringEncoding:*encodings] action:@selector(aBEReloadWithEncoding:) keyEquivalent:@""];
-		[item2 setTag:*encodings];
-		[self.reloadWithEncodingMenu addItem:item2];
-		[item2 release];
-	}
 }
 
 - (BOOL)application:(NSApplication *)sender openFile:(NSString *)filename {
@@ -63,6 +43,26 @@ BetterEditAppDelegate* kBetterEditAppDelegate = nil;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+	if (!_autoSavesInPlace) {
+		[_fileMenu removeItem:[_fileMenu itemWithTitle:@"Duplicate"]];
+	}
+
+	[self.encodingMenu removeAllItems];
+	[self.reloadWithEncodingMenu removeAllItems];
+	
+	NSStringEncoding* encodings = (NSStringEncoding*)[NSString availableStringEncodings];
+	for (int i = 0; *encodings != 0; ++encodings, ++i) {
+		NSMenuItem* item1 = [[NSMenuItem alloc] initWithTitle:[NSString localizedNameOfStringEncoding:*encodings] action:@selector(aBESelectEncoding:) keyEquivalent:@""];
+		[item1 setTag:*encodings];
+		[self.encodingMenu addItem:item1];
+		[item1 release];
+		
+		NSMenuItem* item2 = [[NSMenuItem alloc] initWithTitle:[NSString localizedNameOfStringEncoding:*encodings] action:@selector(aBEReloadWithEncoding:) keyEquivalent:@""];
+		[item2 setTag:*encodings];
+		[self.reloadWithEncodingMenu addItem:item2];
+		[item2 release];
+	}
+
 	if ([Preferences sharedPreferences].openNewDocument && [_editingWindowControllers count] == 0) {
 		[self newWindow:self];
 	}
