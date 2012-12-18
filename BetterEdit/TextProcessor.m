@@ -451,7 +451,7 @@
 	}
 
 	[textStorage addAttribute:NSForegroundColorAttributeName value:color range:range];
-	_highlightNextHighlight = range.location + range.length + 1;
+	_highlightNextHighlight = range.location + range.length;
 }
 
 - (BOOL)addResumePoint:(NSUInteger)position {
@@ -467,6 +467,7 @@
 				++_highlightResumeIndex;
 				return YES;
 			}
+			_stoppedAtResumePoint = YES;
 			return NO;
 		} else {
 			break;
@@ -533,13 +534,22 @@
 	}
 
 	// backtrack a little and start from there
+	_stoppedAtResumePoint   = NO;
 	_highlightResumeIndex   = (i > 2 ? i - 2 : 0);
 	_highlightNextHighlight = lastLast;
 	_highlightGoThrough     = range.location + range.length;
+
 	[self syntaxHighlightTextStorage:textStorage startingAt:lastLast];
+	
+	if (!_stoppedAtResumePoint) {
+		Theme* theme = [Preferences sharedPreferences].theme;
+		NSRange r = NSMakeRange(_highlightNextHighlight, [textStorage length] - _highlightNextHighlight);
+		[textStorage removeAttribute:NSForegroundColorAttributeName range:r];
+		[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:r];
+	}
 }
 
-- (void)dealloc {	
+- (void)dealloc {
 	self.keywords = nil;
 	self.resumePoints = nil;
 

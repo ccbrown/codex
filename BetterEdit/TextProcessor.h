@@ -19,6 +19,7 @@
 	
 	NSMutableArray* _resumePoints;
 	
+	BOOL _stoppedAtResumePoint;
 	NSUInteger _highlightResumeIndex;
 	NSUInteger _highlightNextHighlight;
 	NSUInteger _highlightGoThrough;
