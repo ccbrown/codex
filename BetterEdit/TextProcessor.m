@@ -467,7 +467,7 @@
 				++_highlightResumeIndex;
 				return YES;
 			}
-			_stoppedAtResumePoint = YES;
+			_highlightStopPosition = position;
 			return NO;
 		} else {
 			break;
@@ -534,19 +534,27 @@
 	}
 
 	// backtrack a little and start from there
-	_stoppedAtResumePoint   = NO;
+	_highlightStopPosition  = [textStorage length];
 	_highlightResumeIndex   = (i > 2 ? i - 2 : 0);
 	_highlightNextHighlight = lastLast;
 	_highlightGoThrough     = range.location + range.length;
 
+	[textStorage beginEditing];
 	[self syntaxHighlightTextStorage:textStorage startingAt:lastLast];
 	
-	if (!_stoppedAtResumePoint) {
-		Theme* theme = [Preferences sharedPreferences].theme;
-		NSRange r = NSMakeRange(_highlightNextHighlight, [textStorage length] - _highlightNextHighlight);
-		[textStorage removeAttribute:NSForegroundColorAttributeName range:r];
-		[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:r];
+	if (_highlightStopPosition == [textStorage length]) {
+		// remove the remaining resume points
+		for (NSUInteger i = _highlightResumeIndex + 1; i < [_resumePoints count];) {
+			[_resumePoints removeObjectAtIndex:i];
+		}
 	}
+
+	// color in anything up until the stopping point
+	Theme* theme = [Preferences sharedPreferences].theme;
+	NSRange r = NSMakeRange(_highlightNextHighlight, _highlightStopPosition - _highlightNextHighlight);
+	[textStorage removeAttribute:NSForegroundColorAttributeName range:r];
+	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:r];
+	[textStorage endEditing];
 }
 
 - (void)dealloc {

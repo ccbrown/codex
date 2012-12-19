@@ -40,7 +40,6 @@
 - (void)makeKeyWindow {
 	[super makeKeyWindow];
 	if (_updateWhenKey) {
-		[self reloadPreferences];
 		[self updateViews];
 		_updateWhenKey = NO;
 	}
