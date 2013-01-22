@@ -172,7 +172,7 @@
 
 			position += i;
 			length -= i;
-		} else if (state == XMLStateTag && c1 == '=') {
+		} else if (state == XMLStateTag && c1 == '=' && length >= 2) {
 			// attribute value
 			
 			for (i = 1; i < length; ++i) {

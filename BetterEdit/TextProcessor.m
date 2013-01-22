@@ -551,7 +551,7 @@
 
 	// color in anything up until the stopping point
 	Theme* theme = [Preferences sharedPreferences].theme;
-	NSRange r = NSMakeRange(_highlightNextHighlight, _highlightStopPosition - _highlightNextHighlight);
+	NSRange r = NSMakeRange(_highlightNextHighlight, _highlightStopPosition > _highlightNextHighlight ? _highlightStopPosition - _highlightNextHighlight : 0);
 	[textStorage removeAttribute:NSForegroundColorAttributeName range:r];
 	[textStorage addAttribute:NSForegroundColorAttributeName value:theme.defaultColor range:r];
 	[textStorage endEditing];
