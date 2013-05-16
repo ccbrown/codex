@@ -44,13 +44,19 @@
 	return i;
 }
 
-- (void)phpSyntaxHighlightTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
+- (NSUInteger)phpSyntaxHighlightTextStorage:(NSTextStorage*)textStorage range:(NSRange)range {
 	Theme* theme = [Preferences sharedPreferences].theme;
 	
 	NSString* string = [textStorage string];
 	
-	NSUInteger i;
+	NSUInteger start = range.location;
 
+	NSUInteger i = start;
+	
+	// assume valid 2 length opening tag	
+	range.location += 2;
+	range.length -= 2;
+	
 	while (range.length > 0) {
 		unichar c1 = [string characterAtIndex:range.location];
 		unichar c2 = (range.length > 1 ? [string characterAtIndex:range.location + 1] : 'x');
@@ -129,12 +135,19 @@
 			}
 			range.location += i;
 			range.length -= i;
+		} else if (c1 == '?' && c2 == '>') {
+			// closing tag			
+			range.location += 2;
+			range.length -= 2;
+			
+			break; // break out of php parsing
 		} else {
 			++range.location;
 			--range.length;
 		}
-		
 	}
+	
+	return range.location - start;
 }
 
 - (void)syntaxHighlightTextStorage:(NSTextStorage*)textStorage startingAt:(NSUInteger)position {
@@ -218,31 +231,12 @@
 			
 			position += l;
 			length -= l;
-		} else if (state == XMLStateNormal && c1 == '<' && length >= 2 && ([string characterAtIndex:position + 1] == '?' || [string characterAtIndex:position + 1] == '!')) {
+		} else if (state == XMLStateNormal && c1 == '<' && length >= 2 && ([string characterAtIndex:position + 1] == '?' || [string characterAtIndex:position + 1] == '!' || [string characterAtIndex:position + 1] == '%')) {
 			// php tag
-
-			for (i = 2; i < length; ++i) {
-				unichar c = [string characterAtIndex:position + i];
-				if (c == '"' || c == '\'') {
-					i += [self quoteLength:string range:NSMakeRange(position + i, length - i)];
-					if (i >= length) {
-						break;
-					}
-					c = [string characterAtIndex:position + i];
-				}
-				if (c == '>' && ([string characterAtIndex:position + 1] != '?' || [string characterAtIndex:position + i - 1] == '?')) {
-					break;
-				}
-			}
+			NSUInteger l = [self phpSyntaxHighlightTextStorage:textStorage range:NSMakeRange(position, length)];
 			
-			if ([string characterAtIndex:position + 1] == '?') {
-				[self phpSyntaxHighlightTextStorage:textStorage range:NSMakeRange(position, MIN(length, i + 1))];
-			} else {
-				[self colorText:theme.directiveColor atRange:NSMakeRange(position, MIN(length, i + 1)) textStorage:textStorage];
-			}
-			
-			position += (i + 1);
-			length -= (i + 1);
+			position += l;
+			length -= l;
 		} else if (state == XMLStateNormal && c1 == '<') {
 			// possible tag
 			

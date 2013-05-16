@@ -232,6 +232,7 @@ static AdvancedFindPanel* gAdvancedFindPanelSharedInstance = nil;
 	if (action == NSTextFinderActionShowFindInterface) {
 		[self makeKeyAndOrderFront:nil];
 		[_findComboBox becomeFirstResponder];
+		[_findComboBox selectText:self];
 		return;
 	}
 	
