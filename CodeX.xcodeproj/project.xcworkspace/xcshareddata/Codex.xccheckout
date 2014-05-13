@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>E4330E6B-290D-42DA-AF8A-F65209120809</string>
+	<key>IDESourceControlProjectName</key>
+	<string>CodeX</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>82035D54-0230-4ED5-9195-88AA1BBC6241</key>
+		<string>ssh://github.com/ccbrown/codex.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>CodeX.xcodeproj/project.xcworkspace</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>82035D54-0230-4ED5-9195-88AA1BBC6241</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>ssh://github.com/ccbrown/codex.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>110</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>82035D54-0230-4ED5-9195-88AA1BBC6241</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>82035D54-0230-4ED5-9195-88AA1BBC6241</string>
+			<key>IDESourceControlWCCName</key>
+			<string>codex</string>
+		</dict>
+	</array>
+</dict>
+</plist>
